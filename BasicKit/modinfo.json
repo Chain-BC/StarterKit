@@ -1,0 +1,14 @@
+{
+    "type": "code",
+    "modid": "starterkit",
+    "name": "Starter Kit",
+    "side":  "server",
+    "authors": [
+        "Chain"
+    ],
+    "description": "A basic starter kit mod, allows for adding a starting kit which can be used by anyone with a given privilege.",
+    "version": "1.0",
+    "dependencies": {
+        "game": ""
+    }
+}
