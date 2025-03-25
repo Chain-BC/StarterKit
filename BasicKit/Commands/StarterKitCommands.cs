@@ -17,6 +17,7 @@ namespace StarterKit.Commands
                 .WithDescription("Provides the servers\'s starting kit")
                 .RequiresPrivilege(Privilege.chat)
                 .RequiresPlayer()
+                .WithAlias("sk")
                 .HandleWith(args => HandleStarterKitCommand(args, serverAPI))
                 // Adds an item to the kit, or modifies an existing one
                 .BeginSubCommand("add")
@@ -30,18 +31,34 @@ namespace StarterKit.Commands
                 .RequiresPrivilege(Privilege.controlserver)
                 .WithDescription("Removes an item from the kit")
                 .WithArgs(new WordArgParser("item", true))
-                .HandleWith( args => HandleStarterKitRemoveCommand(args, serverAPI))
+                .HandleWith(args => HandleStarterKitRemoveCommand(args, serverAPI))
                 .EndSubCommand()
                 // List all items on the kit
                 .BeginSubCommand("list")
                 .RequiresPrivilege(Privilege.chat)
                 .WithDescription("List items currently in the kit")
                 .HandleWith(args => HandleStarterKitListCommand(args))
+                .EndSubCommand()
+                // Reload Config
+                .BeginSubCommand("reload")
+                .RequiresPrivilege(Privilege.controlserver)
+                .WithDescription("Reload the config file without restarting the server")
+                .HandleWith(args => HandleStarterKitReloadCommand(args, serverAPI))
+                .EndSubCommand()
+                // Change Config
+                .BeginSubCommand("modify_config")
+                .WithAlias("mc")
+                .RequiresPrivilege(Privilege.controlserver)
+                .WithDescription("Modify a value in config")
+                .WithArgs(new WordArgParser("key", true), new WordArgParser("value", true))
+                .HandleWith(args => HandleStarterKitModifyConfigCommand(args, serverAPI))
                 .EndSubCommand();
-                
          
         }
 
+        /*
+         *  "/starterkit" command, no arguments
+         */
         private static TextCommandResult HandleStarterKitCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
         {
             string successMessage;
@@ -63,7 +80,7 @@ namespace StarterKit.Commands
                 }
             }
 
-            if (StarterKitModSystem.config.requiresPrivilege)
+            if (StarterKitModSystem.config.removePrivilegeOnKitUse && StarterKitModSystem.config.requiresPrivilege)
             {
                 serverAPI.Permissions.DenyPrivilege(args.Caller.Player.PlayerUID, StarterKitModSystem.config.privilege);
                 successMessage = "Kit has been provided, privilege revoked";
@@ -75,6 +92,9 @@ namespace StarterKit.Commands
             return TextCommandResult.Success(successMessage);
         }
 
+        /*
+         *  "/starterkit add <item> [amount]" command, 2 arguments, a word and an integer
+         */
         private static TextCommandResult HandleStarterKitAddCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
         {
             string successMessage = "";
@@ -111,10 +131,13 @@ namespace StarterKit.Commands
                 successMessage = "Item successfully added!";
             }
 
-            serverAPI.StoreModConfig<Config>(StarterKitModSystem.config, configFileName);
+            StarterKitConfig.StoreToFileConfig(serverAPI);
             return TextCommandResult.Success(successMessage);
         }
 
+        /*
+         *  "/starterkit remove <item>" command, 1 argument, a word
+         */
         private static TextCommandResult HandleStarterKitRemoveCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
         {
             string successMessage = "";
@@ -139,16 +162,77 @@ namespace StarterKit.Commands
                 return TextCommandResult.Error("Item not in the kit!");
             }
 
-            serverAPI.StoreModConfig<Config>(StarterKitModSystem.config, configFileName);
+            StarterKitConfig.StoreToFileConfig(serverAPI);
             return TextCommandResult.Success(successMessage);
         }
 
+        /*
+         *  "/starterkit list" command, no arguments
+         */
         private static TextCommandResult HandleStarterKitListCommand(TextCommandCallingArgs args)
         {
             string successMessage = "Items currently in the kit:\n";
             for (int i = 0; i < StarterKitModSystem.config.kitItems.Count; i++)
             {
                 successMessage += "  " + StarterKitModSystem.config.kitItems[i][0] + " - " + StarterKitModSystem.config.kitItems[i][1].ToString() + "\n";
+            }
+            return TextCommandResult.Success(successMessage);
+        }
+
+        /*
+         *  "/starterkit reload" command, no arguments
+         */
+        private static TextCommandResult HandleStarterKitReloadCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
+        {
+            bool success = StarterKitConfig.LoadFromFileConfig(serverAPI);
+            if (!success)
+            {
+                return TextCommandResult.Error("Something went wrong when trying to reload the configuration!");
+            }
+            return TextCommandResult.Success("Configuration successfully reloaded");
+        }
+
+        /*
+         *  "/starterkit modify_config <key> <value>" command, 2 arguments, both words
+         */
+        private static TextCommandResult HandleStarterKitModifyConfigCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
+        {
+            string successMessage = "Configuration value successfully changed";
+            string key = (args[0] as string).ToLower();
+            string value = args[1] as string;
+            bool processedValue;
+            bool validValue;
+
+            switch (key)
+            {
+                case "requiresprivilege":
+                    validValue = bool.TryParse(value, out processedValue);
+                    if (!validValue)
+                    {
+                        return TextCommandResult.Error("Invalid boolean value");
+                    }
+                    StarterKitModSystem.config.requiresPrivilege = processedValue;
+                    StarterKitConfig.StoreToFileConfig(serverAPI);
+                    break;
+
+                case "privilege":
+                    StarterKitModSystem.config.privilege = value;
+                    StarterKitConfig.StoreToFileConfig(serverAPI);
+                    break;
+
+                case "removeprivilegeonkituse":
+                    validValue = bool.TryParse(value, out processedValue);
+                    if (!validValue)
+                    {
+                        return TextCommandResult.Error("Invalid boolean value");
+                    }
+                    StarterKitModSystem.config.removePrivilegeOnKitUse = processedValue;
+                    StarterKitConfig.StoreToFileConfig(serverAPI);
+                    break;
+
+                default:
+                    successMessage = "Valid keys are: requiresPrivilege, privilege, removePrivilegeOnKitUse";
+                    break;
             }
             return TextCommandResult.Success(successMessage);
         }

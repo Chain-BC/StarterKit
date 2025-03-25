@@ -7,7 +7,7 @@ namespace StarterKit
 {
     public class StarterKitModSystem : ModSystem
     {
-        public static Config config;
+        public static StarterKitConfig config;
 
         public override bool ShouldLoad(EnumAppSide forSide)
         {
@@ -16,26 +16,10 @@ namespace StarterKit
 
         public override void StartServerSide(ICoreServerAPI serverAPI)
         {
-            TryToLoadConfig(serverAPI); // Load the initial config
+            StarterKitConfig.TryToLoadConfig(serverAPI); // Load the initial config
             base.StartServerSide(serverAPI);
             StarterKitCommands.RegisterServerCommands(serverAPI);
-            
-        }
 
-        private void TryToLoadConfig(ICoreAPI serverAPI)
-        {
-            try
-            {
-                config = serverAPI.LoadModConfig<Config>("StarterKitConfig.json");
-                config ??= new Config();
-                serverAPI.StoreModConfig<Config>(config, "StarterKitConfig.json");
-            }
-            catch (Exception e)
-            {
-                Mod.Logger.Error("Could not load config! Loading default settings instead.");
-                Mod.Logger.Error(e);
-                config = new Config();
-            }
         }
 
     }
