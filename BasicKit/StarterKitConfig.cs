@@ -8,22 +8,21 @@ namespace StarterKit
     {
         public bool requiresPrivilege = true;
         public string privilege = "starterkit";
-        public bool removePrivilegeOnKitUse = true;
         public List<string[]> kitItems = new(); // Each string in the list has the item name at index 0 and the item amount at index 1
 
-        public static void TryToLoadConfig(ICoreAPI serverAPI)
+        public static void TryToLoadConfig(ICoreAPI serverAPI, ref StarterKitConfig config)
         {
             try
             {
-                StarterKitModSystem.config = serverAPI.LoadModConfig<StarterKitConfig>("StarterKitConfig.json");
-                StarterKitModSystem.config ??= new StarterKitConfig();
-                serverAPI.StoreModConfig(StarterKitModSystem.config, "StarterKitConfig.json");
+                config = serverAPI.LoadModConfig<StarterKitConfig>("StarterKitConfig.json");
+                config ??= new StarterKitConfig();
+                serverAPI.StoreModConfig(StarterKitModSystem.Config, "StarterKitConfig.json");
             }
             catch (Exception e)
             {
                 serverAPI.Logger.Error("Could not load config! Loading default settings instead.");
                 serverAPI.Logger.Error(e);
-                StarterKitModSystem.config = new StarterKitConfig();
+                StarterKitModSystem.Config = new StarterKitConfig();
             }
         }
 
@@ -32,7 +31,7 @@ namespace StarterKit
             bool success = true;
             try
             {
-                StarterKitModSystem.config = serverAPI.LoadModConfig<StarterKitConfig>("StarterKitConfig.json");
+                StarterKitModSystem.Config = serverAPI.LoadModConfig<StarterKitConfig>("StarterKitConfig.json");
             }
             catch (Exception e)
             {
@@ -47,7 +46,7 @@ namespace StarterKit
         {
             try
             {
-                serverAPI.StoreModConfig(StarterKitModSystem.config, "StarterKitConfig.json");
+                serverAPI.StoreModConfig(StarterKitModSystem.Config, "StarterKitConfig.json");
             }
             catch (Exception e)
             {

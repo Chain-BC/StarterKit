@@ -36,7 +36,7 @@ namespace StarterKit.Commands
                 .BeginSubCommand("list")
                 .RequiresPrivilege(Privilege.chat)
                 .WithDescription("List items currently in the kit")
-                .HandleWith(args => HandleStarterKitListCommand(args))
+                .HandleWith(HandleStarterKitListCommand)
                 .EndSubCommand()
                 // Reload Config
                 .BeginSubCommand("reload")
@@ -60,32 +60,37 @@ namespace StarterKit.Commands
          */
         private static TextCommandResult HandleStarterKitCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
         {
-            string successMessage;
-            if (StarterKitModSystem.config.requiresPrivilege && !args.Caller.Player.HasPrivilege(StarterKitModSystem.config.privilege))
+            var successMessage = "Kit has been provided";
+            if (StarterKitModSystem.Config.requiresPrivilege && !args.Caller.Player.HasPrivilege(StarterKitModSystem.Config.privilege))
             {
                 return TextCommandResult.Error("Not enough permissions!");
             }
             
-            foreach (var itemStack in StarterKitModSystem.config.kitItems)
+            foreach (var itemStack in StarterKitModSystem.Config.kitItems)
             {
                 Item? currentItem = serverAPI.World.GetItem(itemStack[0]);
-                ItemStack currentItemStack = new(currentItem, int.Parse(itemStack[1]));
+                Block? currentBlock = serverAPI.World.GetBlock(itemStack[0]);
+                ItemStack currentItemStack;
+                if (currentItem != null) // If it's an item do this block of code
+                {
+                    currentItemStack = new(currentItem, int.Parse(itemStack[1]));
+                }
+                else if (currentBlock != null) // If it's a block, do this instead
+                {
+                    currentItemStack = new(currentBlock, int.Parse(itemStack[1]));
+                }
+                else // If the item was added manually via editing the config, there is a chance for both of those to fail
+                {
+                    return TextCommandResult.Error("One of the items has a wrong ID, please notify an administator!");
+                }
+
                 bool slotsFree = args.Caller.Player.InventoryManager.TryGiveItemstack(currentItemStack, true);
                 if (!slotsFree)
                 {
                     serverAPI.World.SpawnItemEntity(currentItemStack, args.Caller.Pos);
                 }
             }
-
-            if (StarterKitModSystem.config.removePrivilegeOnKitUse && StarterKitModSystem.config.requiresPrivilege)
-            {
-                serverAPI.Permissions.DenyPrivilege(args.Caller.Player.PlayerUID, StarterKitModSystem.config.privilege);
-                successMessage = "Kit has been provided, privilege revoked";
-            }
-            else
-            {
-                successMessage = "Kit has been provided";
-            }
+            
             return TextCommandResult.Success(successMessage);
         }
 
@@ -94,17 +99,17 @@ namespace StarterKit.Commands
          */
         private static TextCommandResult HandleStarterKitAddCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
         {
-            string successMessage = "";
-            string itemString = (args[0] as string).ToLower();
-            int itemAmount = (int)args[1];
+            string successMessage;
+            var itemString = (args[0] as string)!.ToLower();
+            var itemAmount = (int)args[1];
             string[] itemArray = [itemString, itemAmount.ToString()];
-            Item item = serverAPI.World.GetItem(itemString);
-            int updateItemIndex = -1;
+            Item? item = serverAPI.World.GetItem(itemString);
+            Block? block = serverAPI.World.GetBlock(itemString);
 
             // Validates given arguments
-            if (item == null)
+            if (item == null && block == null)
             {
-                return TextCommandResult.Error("Invalid item name!");
+                return TextCommandResult.Error("Invalid item/block name!");
             }
             if (itemAmount < 1)
             {
@@ -112,19 +117,19 @@ namespace StarterKit.Commands
             }
 
             // The kit has unique items, but you can change the amount of each unique item that a person gets, this checks that
-            updateItemIndex = StarterKitModSystem.config.kitItems.FindIndex(currItem => (currItem[0] == itemString && currItem[1] != itemAmount.ToString()));
-            if (StarterKitModSystem.config.kitItems.FindIndex(currItem => (currItem[0] == itemString && currItem[1] == itemAmount.ToString())) != -1)
+            int updateItemIndex = StarterKitModSystem.Config.kitItems.FindIndex(currItem => (currItem[0] == itemString && currItem[1] != itemAmount.ToString()));
+            if (StarterKitModSystem.Config.kitItems.FindIndex(currItem => (currItem[0] == itemString && currItem[1] == itemAmount.ToString())) != -1) // Same item and item amount are in the list
             {
                 return TextCommandResult.Error("Item already in the kit!");
             }
-            else if ( updateItemIndex != -1)
+            else if ( updateItemIndex != -1) // Same item but not the same item amount are in the list
             {
-                StarterKitModSystem.config.kitItems[updateItemIndex] = itemArray;
+                StarterKitModSystem.Config.kitItems[updateItemIndex] = itemArray;
                 successMessage = "Item amount updated!";
             }
-            else
+            else // Item is not in the list
             {
-                StarterKitModSystem.config.kitItems.Add(itemArray);
+                StarterKitModSystem.Config.kitItems.Add(itemArray);
                 successMessage = "Item successfully added!";
             }
 
@@ -137,22 +142,21 @@ namespace StarterKit.Commands
          */
         private static TextCommandResult HandleStarterKitRemoveCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
         {
-            string successMessage = "";
-            int updateItemIndex = -1;
-            string itemString = (args[0] as string).ToLower();
-            Item item = serverAPI.World.GetItem(itemString);
+            string successMessage = "Item successfully removed!";
+            string itemString = (args[0] as string)!.ToLower();
+            Item? item = serverAPI.World.GetItem(itemString);
+            Block? block = serverAPI.World.GetBlock(itemString);
 
             // Validates given arguments
-            if (item == null)
+            if (item == null && block == null)
             {
-                return TextCommandResult.Error("Invalid item name!");
+                return TextCommandResult.Error("Invalid item/block name!");
             }
 
-            updateItemIndex = StarterKitModSystem.config.kitItems.FindIndex(currItem => currItem[0] == itemString);
+            int updateItemIndex = StarterKitModSystem.Config.kitItems.FindIndex(currItem => (currItem[0] == itemString));
             if (updateItemIndex != -1)
             {
-                StarterKitModSystem.config.kitItems.RemoveAt(updateItemIndex);
-                successMessage = "Item successfully removed!";
+                StarterKitModSystem.Config.kitItems.RemoveAt(updateItemIndex);
             }
             else
             {
@@ -166,12 +170,12 @@ namespace StarterKit.Commands
         /*
          *  "/starterkit list" command, no arguments
          */
-        private static TextCommandResult HandleStarterKitListCommand(TextCommandCallingArgs args)
+        private static TextCommandResult HandleStarterKitListCommand(TextCommandCallingArgs _)
         {
             string successMessage = "Items currently in the kit:\n";
-            for (int i = 0; i < StarterKitModSystem.config.kitItems.Count; i++)
+            foreach (var item in StarterKitModSystem.Config.kitItems)
             {
-                successMessage += "  " + StarterKitModSystem.config.kitItems[i][0] + " - " + StarterKitModSystem.config.kitItems[i][1].ToString() + "\n";
+                successMessage += "  " + item[0] + " - " + item[1] + "\n";
             }
             return TextCommandResult.Success(successMessage);
         }
@@ -179,7 +183,7 @@ namespace StarterKit.Commands
         /*
          *  "/starterkit reload" command, no arguments
          */
-        private static TextCommandResult HandleStarterKitReloadCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
+        private static TextCommandResult HandleStarterKitReloadCommand(TextCommandCallingArgs _, ICoreServerAPI serverAPI)
         {
             bool success = StarterKitConfig.LoadFromFileConfig(serverAPI);
             if (!success)
@@ -195,35 +199,23 @@ namespace StarterKit.Commands
         private static TextCommandResult HandleStarterKitModifyConfigCommand(TextCommandCallingArgs args, ICoreServerAPI serverAPI)
         {
             string successMessage = "Configuration value successfully changed";
-            string key = (args[0] as string).ToLower();
-            string value = args[1] as string;
-            bool processedValue;
-            bool validValue;
+            string key = (args[0] as string)!.ToLower();
+            string value = (args[1] as string)!;
 
             switch (key)
             {
-                case "requiresprivilege":
-                    validValue = bool.TryParse(value, out processedValue);
+                case "requiresPrivilege":
+                    bool validValue = bool.TryParse(value, out bool processedValue);
                     if (!validValue)
                     {
                         return TextCommandResult.Error("Invalid boolean value");
                     }
-                    StarterKitModSystem.config.requiresPrivilege = processedValue;
+                    StarterKitModSystem.Config.requiresPrivilege = processedValue;
                     StarterKitConfig.StoreToFileConfig(serverAPI);
                     break;
 
                 case "privilege":
-                    StarterKitModSystem.config.privilege = value;
-                    StarterKitConfig.StoreToFileConfig(serverAPI);
-                    break;
-
-                case "removeprivilegeonkituse":
-                    validValue = bool.TryParse(value, out processedValue);
-                    if (!validValue)
-                    {
-                        return TextCommandResult.Error("Invalid boolean value");
-                    }
-                    StarterKitModSystem.config.removePrivilegeOnKitUse = processedValue;
+                    StarterKitModSystem.Config.privilege = value;
                     StarterKitConfig.StoreToFileConfig(serverAPI);
                     break;
 

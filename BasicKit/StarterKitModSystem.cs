@@ -6,8 +6,10 @@ namespace StarterKit
 {
     public class StarterKitModSystem : ModSystem
     {
-        public static StarterKitConfig config;
-
+        #pragma warning disable CS8618
+        public static StarterKitConfig Config;
+        #pragma warning restore CS8618
+        
         public override bool ShouldLoad(EnumAppSide forSide)
         {
             return forSide.IsServer();
@@ -15,7 +17,7 @@ namespace StarterKit
 
         public override void StartServerSide(ICoreServerAPI serverAPI)
         {
-            StarterKitConfig.TryToLoadConfig(serverAPI); // Load the initial config
+            StarterKitConfig.TryToLoadConfig(serverAPI, ref Config); // Load the initial config
             base.StartServerSide(serverAPI);
             StarterKitCommands.RegisterServerCommands(serverAPI);
 
