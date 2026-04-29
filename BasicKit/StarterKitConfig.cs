@@ -9,7 +9,7 @@ namespace StarterKit
         public bool requiresPrivilege = true;
         public string privilege = "starterkit";
         public bool removePrivilegeOnKitUse = true;
-        public List<string[]> kitItems = new();
+        public List<string[]> kitItems = new(); // Each string in the list has the item name at index 0 and the item amount at index 1
 
         public static void TryToLoadConfig(ICoreAPI serverAPI)
         {
@@ -17,7 +17,7 @@ namespace StarterKit
             {
                 StarterKitModSystem.config = serverAPI.LoadModConfig<StarterKitConfig>("StarterKitConfig.json");
                 StarterKitModSystem.config ??= new StarterKitConfig();
-                serverAPI.StoreModConfig<StarterKitConfig>(StarterKitModSystem.config, "StarterKitConfig.json");
+                serverAPI.StoreModConfig(StarterKitModSystem.config, "StarterKitConfig.json");
             }
             catch (Exception e)
             {
@@ -47,7 +47,7 @@ namespace StarterKit
         {
             try
             {
-                serverAPI.StoreModConfig<StarterKitConfig>(StarterKitModSystem.config, "StarterKitConfig.json");
+                serverAPI.StoreModConfig(StarterKitModSystem.config, "StarterKitConfig.json");
             }
             catch (Exception e)
             {

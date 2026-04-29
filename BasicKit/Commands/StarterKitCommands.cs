@@ -1,5 +1,4 @@
-﻿using System;
-using Vintagestory.API.Common;
+﻿using Vintagestory.API.Common;
 using Vintagestory.API.Server;
 
 namespace StarterKit.Commands
@@ -7,7 +6,7 @@ namespace StarterKit.Commands
     internal static class StarterKitCommands
     {
 
-        private static readonly string configFileName = "StarterKitConfig.json";
+        //private static readonly string configFileName = "StarterKitConfig.json";
 
         public static void RegisterServerCommands(ICoreServerAPI serverAPI)
         {
@@ -66,14 +65,12 @@ namespace StarterKit.Commands
             {
                 return TextCommandResult.Error("Not enough permissions!");
             }
-
-            Item currentItem;
-            bool slotsFree;
-            for (int i = 0; i < StarterKitModSystem.config.kitItems.Count; i++)
+            
+            foreach (var itemStack in StarterKitModSystem.config.kitItems)
             {
-                currentItem = serverAPI.World.GetItem(StarterKitModSystem.config.kitItems[i][0]);
-                ItemStack currentItemStack = new(currentItem, int.Parse(StarterKitModSystem.config.kitItems[i][1]));
-                slotsFree = args.Caller.Player.InventoryManager.TryGiveItemstack(currentItemStack, true);
+                Item? currentItem = serverAPI.World.GetItem(itemStack[0]);
+                ItemStack currentItemStack = new(currentItem, int.Parse(itemStack[1]));
+                bool slotsFree = args.Caller.Player.InventoryManager.TryGiveItemstack(currentItemStack, true);
                 if (!slotsFree)
                 {
                     serverAPI.World.SpawnItemEntity(currentItemStack, args.Caller.Pos);
@@ -100,7 +97,7 @@ namespace StarterKit.Commands
             string successMessage = "";
             string itemString = (args[0] as string).ToLower();
             int itemAmount = (int)args[1];
-            string[] itemArray = new string[] { itemString, itemAmount.ToString()};
+            string[] itemArray = [itemString, itemAmount.ToString()];
             Item item = serverAPI.World.GetItem(itemString);
             int updateItemIndex = -1;
 
